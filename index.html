@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Value Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f6f6f4; --surface-1:#fcfcfb; --line:#e4e3de; --grid:#eeede9;
+  --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#8a8984;
+  --series-1:#2a78d6; --series-2:#eb6834;
+  --good:#1a7f37; --good-bg:#e3f4e8; --warn:#9a6700; --warn-bg:#fff4d6;
+  --bad:#c0362c; --bad-bg:#fde8e6; --neutral-bg:#ecebe7;
+  --range:#cde2fb; --bearc:#e9b3ae;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#111110; --surface-1:#1a1a19; --line:#2c2c2a; --grid:#242422;
+    --text-primary:#f0efec; --text-secondary:#c3c2b7; --muted:#8f8e86;
+    --series-1:#3987e5; --series-2:#d95926;
+    --good:#5cc97a; --good-bg:#16301e; --warn:#e0b44a; --warn-bg:#33290f;
+    --bad:#f07a70; --bad-bg:#3a1a17; --neutral-bg:#26261f;
+    --range:#184f95; --bearc:#6b2c27;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#111110; --surface-1:#1a1a19; --line:#2c2c2a; --grid:#242422;
+  --text-primary:#f0efec; --text-secondary:#c3c2b7; --muted:#8f8e86;
+  --series-1:#3987e5; --series-2:#d95926;
+  --good:#5cc97a; --good-bg:#16301e; --warn:#e0b44a; --warn-bg:#33290f;
+  --bad:#f07a70; --bad-bg:#3a1a17; --neutral-bg:#26261f;
+  --range:#184f95; --bearc:#6b2c27;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text-primary);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1280px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 20px;margin-bottom:16px}
+h1{font-size:20px;margin:0}
+h2{font-size:15px;margin:0 0 10px}
+.sub{color:var(--text-secondary);font-size:13px}
+.card{background:var(--surface-1);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.tile{background:var(--surface-1);border:1px solid var(--line);border-radius:10px;padding:14px}
+.tile .k{font-size:12px;color:var(--text-secondary)}
+.tile .v{font-size:22px;font-weight:650;margin-top:2px}
+.tile .d{font-size:12px;color:var(--muted)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:7px 8px;border-bottom:1px solid var(--grid);text-align:right;white-space:nowrap}
+th{font-size:12px;color:var(--text-secondary);font-weight:600;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--surface-1)}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--surface-1);z-index:1}
+th:first-child{z-index:2}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--bg)}
+tbody tr.sel{outline:2px solid var(--series-1);outline-offset:-2px}
+tr.grp td{background:var(--bg);color:var(--text-secondary);font-size:12px;font-weight:600;cursor:default;text-align:left}
+.pos{color:var(--good)} .neg{color:var(--bad)}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:650;letter-spacing:.02em}
+.p-BUY{background:var(--good-bg);color:var(--good)}
+.p-ACC{background:var(--warn-bg);color:var(--warn)}
+.p-HOLD{background:var(--neutral-bg);color:var(--text-secondary)}
+.p-EXP{background:var(--bad-bg);color:var(--bad)}
+.risk-Low{color:var(--good)} .risk-Medium{color:var(--warn)} .risk-High{color:var(--bad)}
+.grid2{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+@media (max-width:900px){.grid2{grid-template-columns:1fr}}
+.ff-row{display:grid;grid-template-columns:90px 1fr;align-items:center;gap:10px;height:30px}
+.ff-label{font-size:12px;font-weight:600}
+.ff-track{position:relative;height:14px}
+.ff-bear{position:absolute;top:3px;height:8px;background:var(--bearc);border-radius:4px 0 0 4px}
+.ff-up{position:absolute;top:3px;height:8px;background:var(--range);border-radius:0 4px 4px 0}
+.ff-price{position:absolute;top:-2px;width:3px;height:18px;background:var(--text-primary);border-radius:2px;box-shadow:0 0 0 2px var(--surface-1)}
+.ff-buy{position:absolute;top:-2px;width:0;height:18px;border-left:2px dashed var(--good)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--text-secondary);margin-top:8px}
+.legend i{display:inline-block;width:14px;height:8px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.detail dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:13px}
+.detail dt{color:var(--text-secondary)}
+.detail dd{margin:0}
+.chartbox{position:relative;height:260px}
+.note{font-size:12px;color:var(--muted);margin-top:10px}
+button{font:inherit;font-size:12px;background:var(--surface-1);color:var(--text-primary);border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer}
+#err{color:var(--bad)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Value Tracker</h1>
+    <span class="sub" id="asof">Loading live prices…</span>
+    <button id="refresh">Refresh</button>
+    <span id="err"></span>
+  </header>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="card">
+    <h2>Margin of safety, risk-to-reward and what to do (click a row for details)</h2>
+    <div class="tablewrap"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+    <div class="note">Signal: <b>BUY ZONE</b> = price under the "buy below" level (intrinsic value less your required margin of safety) ·
+      <b>ACCUMULATE</b> = at least half that margin · <b>HOLD</b> = near fair value · <b>EXPENSIVE</b> = more than 10% over intrinsic value.
+      Expected 5y return assumes price converges to year-5 intrinsic value. R/R = upside to intrinsic value ÷ downside to bear case.</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Valuation range: bear case → price → intrinsic value</h2>
+      <div id="ff"></div>
+      <div class="legend">
+        <span><i style="background:var(--bearc)"></i>Downside to bear case</span>
+        <span><i style="background:var(--range)"></i>Upside to intrinsic value</span>
+        <span><i style="background:var(--text-primary);width:3px"></i>Price</span>
+        <span><i style="border-left:2px dashed var(--good);width:2px;background:none;height:12px"></i>Buy-below level</span>
+      </div>
+      <div class="note">Each bar is scaled to its own price (100% = today's price), so the stocks are comparable.</div>
+    </div>
+    <div class="card detail" id="detail"></div>
+  </div>
+
+  <div class="card">
+    <h2 id="chartTitle">1-year performance vs S&amp;P 500 (indexed to 100)</h2>
+    <div class="chartbox"><canvas id="chart"></canvas></div>
+    <div class="legend" id="chartLegend"></div>
+  </div>
+  <div class="note">Data: Yahoo Finance via yfinance (15-minute delayed quotes; Heineken and LVMH in EUR, Pavilion REIT in MYR). Assumptions: valuation.json. This is a research tool, not investment advice.</div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const pct = (x, d = 1) => x == null ? "–" : (x * 100).toFixed(d) + "%";
+const sgn = x => x == null ? "" : x >= 0 ? "pos" : "neg";
+const SYM = {EUR: "€", USD: "$", MYR: "RM ", GBP: "£", GBp: "p", HKD: "HK$", SGD: "S$", JPY: "¥", CAD: "C$", BRL: "R$"};
+const money = (x, cur) => x == null ? "–" : (SYM[cur] ?? (cur ? cur + " " : "$")) + x.toLocaleString(undefined, {maximumFractionDigits: 2, minimumFractionDigits: 2});
+const big = x => x == null ? "–" : Math.abs(x) >= 1e12 ? (x / 1e12).toFixed(2) + "T" : Math.abs(x) >= 1e9 ? (x / 1e9).toFixed(1) + "B" : (x / 1e6).toFixed(0) + "M";
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const pillCls = s => ({"BUY ZONE": "p-BUY", "ACCUMULATE": "p-ACC", "HOLD": "p-HOLD", "EXPENSIVE": "p-EXP"}[s] || "p-HOLD");
+let DATA = null, sel = null, sortKey = "rr", sortDir = -1, chart = null;
+
+const COLS = [
+  ["ticker", "Stock"], ["price", "Price"], ["iv", "Intrinsic value"], ["mos", "Margin of safety"],
+  ["buy_below", "Buy below"], ["upside", "Upside"], ["downside", "Downside (bear)"], ["rr", "R/R"],
+  ["cagr5", "Exp. 5y return/yr"], ["alpha5", "vs S&P/yr"], ["risk", "Risk"], ["signal", "Signal"],
+  ["dy", "Div yield"], ["dps", "Div/yr"],
+  ["fpe", "Fwd P/E"], ["from_high", "From 52w high"], ["vs_ma200", "vs 200d avg"]
+];
+const val = (r, k) => k === "dy" ? r.dividend?.yield : k === "dps" ? r.dividend?.per_share : k === "fpe" ? r.info?.forwardPE : k === "from_high" || k === "vs_ma200" ? r.perf?.[k] : k === "risk" ? {Low: 1, Medium: 2, High: 3}[r.risk] : r[k];
+
+function renderTable() {
+  $("#tbl thead").innerHTML = "<tr>" + COLS.map(([k, l]) => `<th data-k="${k}">${l}${sortKey === k ? (sortDir < 0 ? " ▾" : " ▴") : ""}</th>`).join("") + "</tr>";
+  const groups = [["core", "Your stocks"], ["benchmark", "Benchmark"], ["idea", "Alternative ideas"]];
+  let html = "";
+  for (const [g, label] of groups) {
+    const rows = DATA.rows.filter(r => r.group === g).sort((a, b) => {
+      const x = val(a, sortKey), y = val(b, sortKey);
+      if (typeof x === "string") return sortDir * x.localeCompare(y);
+      return sortDir * ((x ?? -1e9) - (y ?? -1e9));
+    });
+    if (!rows.length) continue;
+    html += `<tr class="grp"><td colspan="${COLS.length}">${label}</td></tr>`;
+    for (const r of rows) {
+      const c = r.info?.currency;
+      if (r.error) { html += `<tr><td><b>${r.ticker}</b></td><td colspan="${COLS.length - 1}" class="neg">${r.error}</td></tr>`; continue; }
+      html += `<tr data-t="${r.ticker}" class="${r.ticker === sel ? "sel" : ""}">
+        <td><b>${r.ticker}</b> <span class="sub">${r.name}</span></td>
+        <td>${money(r.price, c)}</td><td>${money(r.iv, c)}</td>
+        <td class="${sgn(r.mos)}"><b>${pct(r.mos)}</b></td><td>${money(r.buy_below, c)}</td>
+        <td class="${sgn(r.upside)}">${pct(r.upside, 0)}</td><td class="neg">-${pct(r.downside, 0)}</td>
+        <td><b>${r.rr == null ? "–" : r.rr.toFixed(2)}</b></td>
+        <td class="${sgn(r.cagr5)}">${pct(r.cagr5)}</td><td class="${sgn(r.alpha5)}">${r.group === "benchmark" ? "–" : (r.alpha5 >= 0 ? "+" : "") + pct(r.alpha5)}</td>
+        <td class="risk-${r.risk}">${r.risk}</td><td><span class="pill ${pillCls(r.signal)}">${r.signal}</span></td>
+        <td>${r.dividend?.yield ? pct(r.dividend.yield, 2) : "–"}</td><td>${r.dividend?.per_share ? money(r.dividend.per_share, c) : "–"}</td>
+        <td>${r.info?.forwardPE > 1 ? r.info.forwardPE.toFixed(1) : "–"}</td>
+        <td class="${sgn(r.perf?.from_high)}">${pct(r.perf?.from_high, 0)}</td>
+        <td class="${sgn(r.perf?.vs_ma200)}">${pct(r.perf?.vs_ma200, 0)}</td></tr>`;
+    }
+  }
+  $("#tbl tbody").innerHTML = html;
+  document.querySelectorAll("#tbl th").forEach(th => th.onclick = () => {
+    const k = th.dataset.k; sortDir = sortKey === k ? -sortDir : -1; sortKey = k; renderTable();
+  });
+  document.querySelectorAll("#tbl tbody tr[data-t]").forEach(tr => tr.onclick = () => select(tr.dataset.t));
+}
+
+function renderTiles() {
+  const core = DATA.rows.filter(r => r.group !== "benchmark" && r.rr != null);
+  const best = [...core].sort((a, b) => b.rr - a.rr)[0];
+  const mos = [...core].sort((a, b) => b.mos - a.mos)[0];
+  const buys = core.filter(r => r.signal === "BUY ZONE").map(r => r.ticker);
+  const spy = DATA.rows.find(r => r.ticker === DATA.benchmark);
+  const dv = [...core].sort((a, b) => (b.dividend?.yield ?? 0) - (a.dividend?.yield ?? 0))[0];
+  $("#tiles").innerHTML = `
+    <div class="tile"><div class="k">Best risk-to-reward</div><div class="v">${best?.ticker ?? "–"}</div><div class="d">R/R ${best?.rr.toFixed(2)} · ${pct(best?.mos)} margin of safety</div></div>
+    <div class="tile"><div class="k">Largest margin of safety</div><div class="v">${mos?.ticker ?? "–"}</div><div class="d">${pct(mos?.mos)} under intrinsic value</div></div>
+    <div class="tile"><div class="k">In buy zone now</div><div class="v">${buys.length}</div><div class="d">${buys.join(", ") || "none"}</div></div>
+    <div class="tile"><div class="k">Highest dividend yield</div><div class="v">${dv?.ticker ?? "–"}</div><div class="d">${pct(dv?.dividend?.yield, 2)} · ${money(dv?.dividend?.per_share, dv?.info?.currency)}/yr</div></div>
+    <div class="tile"><div class="k">S&amp;P 500 (SPY) hurdle</div><div class="v">${pct(spy?.cagr5)}/yr</div><div class="d">Expected 5y return at today's ${spy?.info?.trailingPE?.toFixed(1) ?? "–"}x P/E</div></div>`;
+}
+
+function renderFF() {
+  const rows = DATA.rows.filter(r => r.price && r.iv);
+  // Scale: -60% .. +80% of price, price at a fixed x
+  const lo = -0.6, hi = 0.8, x = v => ((Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)) * 100;
+  $("#ff").innerHTML = rows.map(r => {
+    const bear = r.bear / r.price - 1, up = r.iv / r.price - 1, buy = r.buy_below / r.price - 1;
+    const p0 = x(0);
+    const tip = `${r.ticker}: bear ${money(r.bear, r.info?.currency)} (${pct(bear, 0)}) · price ${money(r.price, r.info?.currency)} · intrinsic ${money(r.iv, r.info?.currency)} (${pct(up, 0)}) · buy below ${money(r.buy_below, r.info?.currency)}`;
+    const upBar = up >= 0 ? `<div class="ff-up" style="left:${p0}%;width:${x(up) - p0}%"></div>`
+                          : `<div class="ff-up" style="left:${x(up)}%;width:${p0 - x(up)}%;opacity:.5;border-radius:4px 0 0 4px"></div>`;
+    return `<div class="ff-row" title="${tip}"><div class="ff-label">${r.ticker}</div><div class="ff-track">
+      <div class="ff-bear" style="left:${x(bear)}%;width:${p0 - x(bear)}%"></div>${upBar}
+      <div class="ff-buy" style="left:${x(buy)}%"></div><div class="ff-price" style="left:calc(${p0}% - 1px)"></div></div></div>`;
+  }).join("");
+}
+
+function select(t) {
+  sel = t; renderTable();
+  const r = DATA.rows.find(z => z.ticker === t), i = r.info || {}, c = i.currency;
+  const nd = (i.totalDebt ?? 0) - (i.totalCash ?? 0);
+  $("#detail").innerHTML = `<h2>${r.name} (${r.ticker}) <span class="pill ${pillCls(r.signal)}">${r.signal}</span></h2>
+    <dl>
+      <dt>Intrinsic value</dt><dd>${money(r.iv, c)} (DCF ${money(r.iv_dcf, c)} · multiple ${money(r.iv_mult, c)})</dd>
+      <dt>Model inputs</dt><dd>base ${r.base} · growth ${pct(r.g1, 0)} then ${pct(r.g2, 0)} · terminal ${pct(r.tg, 1)} · discount ${pct(r.r, 1)} · fair P/E ${r.fair_pe}</dd>
+      <dt>Base is</dt><dd>${r.basis}</dd>
+      <dt>Owner-earnings yield</dt><dd>${pct(r.earnings_yield)}</dd>
+      <dt>Leverage</dt><dd>Debt/equity ${i.debtToEquity?.toFixed(0) ?? "–"}% · net debt ${big(nd)}${i.ebitda ? " · net debt/EBITDA " + (nd / i.ebitda).toFixed(1) + "x" : ""}</dd>
+      <dt>Quality</dt><dd>Op. margin ${pct(i.operatingMargins)} · ROE ${pct(i.returnOnEquity)} · revenue growth ${pct(i.revenueGrowth)}</dd>
+      <dt>Moat</dt><dd>${r.moat}</dd>
+      <dt>Key driver</dt><dd>${r.driver}</dd>
+      <dt>Black swan</dt><dd>${r.black_swan}</dd>
+      <dt>Dividend</dt><dd>${r.dividend?.per_share ? `${money(r.dividend.per_share, c)}/yr · yield ${pct(r.dividend.yield, 2)} · payout ${pct(r.dividend.payout, 0)}${r.dividend.ex_date ? " · last ex-date " + r.dividend.ex_date : ""}` : "None"}</dd>
+      <dt>Risk-to-reward</dt><dd>${r.rr == null ? "–" : r.rr.toFixed(2)}: ${pct(r.upside, 0)} upside to ${money(r.iv, c)} vs -${pct(r.downside, 0)} downside to bear case ${money(r.bear, c)}</dd>
+      <dt>Analyst target</dt><dd>${money(i.targetMeanPrice, c)} · 52w ${money(i.fiftyTwoWeekLow, c)}–${money(i.fiftyTwoWeekHigh, c)}</dd>
+    </dl>`;
+  renderChart(t);
+}
+
+function renderChart(t) {
+  const h = DATA.history, b = DATA.benchmark;
+  if (!h[t] || !h[b]) return;
+  const idx = s => s.close.map(v => v / s.close[0] * 100);
+  const bmap = new Map(h[b].dates.map((d, k) => [d, h[b].close[k]]));
+  const dates = h[t].dates.filter(d => bmap.has(d));
+  const a = dates.map(d => h[t].close[h[t].dates.indexOf(d)]), bb = dates.map(d => bmap.get(d));
+  const A = a.map(v => v / a[0] * 100), B = bb.map(v => v / bb[0] * 100);
+  const showB = t !== b;
+  $("#chartTitle").textContent = showB ? `${t} vs S&P 500: 1-year performance (indexed to 100)` : "S&P 500 (SPY): 1-year performance (indexed to 100)";
+  $("#chartLegend").innerHTML = `<span><i style="background:${css("--series-1")}"></i>${t} ${pct(A.at(-1) / 100 - 1)}</span>` +
+    (showB ? `<span><i style="background:${css("--series-2")}"></i>S&amp;P 500 ${pct(B.at(-1) / 100 - 1)}</span>` : "");
+  const ds = [{label: t, data: A, borderColor: css("--series-1"), borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: .15}];
+  if (showB) ds.push({label: "S&P 500", data: B, borderColor: css("--series-2"), borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: .15});
+  chart?.destroy();
+  chart = new Chart($("#chart"), {
+    type: "line", data: {labels: dates, datasets: ds},
+    options: {
+      responsive: true, maintainAspectRatio: false, interaction: {mode: "index", intersect: false},
+      plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => `${c.dataset.label}: ${c.parsed.y.toFixed(1)}`}}},
+      scales: {
+        x: {ticks: {color: css("--muted"), maxTicksLimit: 8}, grid: {display: false}},
+        y: {ticks: {color: css("--muted")}, grid: {color: css("--grid")}}
+      }
+    }
+  });
+}
+
+async function load() {
+  $("#err").textContent = ""; $("#asof").textContent = "Loading live prices…";
+  try {
+    // On this PC the local server answers api/data with live prices; on GitHub Pages
+    // that 404s and we read the snapshot the scheduled job writes every ~30 min.
+    let d = null;
+    try { const r = await fetch("api/data", {cache: "no-store"}); if (r.ok) d = await r.json(); } catch (_) {}
+    if (!d || d.error) {
+      const r = await fetch("data.json?t=" + Date.now(), {cache: "no-store"});
+      if (!r.ok) throw new Error("no data yet (snapshot not published)");
+      d = await r.json();
+    }
+    if (d.error) throw new Error(d.error);
+    DATA = d;
+    const mins = Math.round((Date.now() - new Date(d.asof)) / 60000);
+    const age = mins < 1 ? "just now" : mins < 90 ? mins + " min ago" : (mins / 60).toFixed(1) + " h ago";
+    const src = d.source === "snapshot" ? "Snapshot (refreshes ~every 30 min)" : "Live from this PC";
+    $("#asof").textContent = `${src} · updated ${new Date(d.asof).toLocaleString()} (${age})`;
+    // Weekday data older than 2h means the scheduled refresh is failing; weekends are expected to be stale.
+    const day = new Date().getUTCDay();
+    if (mins > 120 && day !== 0 && day !== 6) $("#err").textContent = `⚠ Data is ${age} old: the refresh may be failing. Prices may be out of date.`;
+    renderTiles(); renderTable(); renderFF();
+    select(sel || [...d.rows].filter(r => r.rr != null && r.group === "core").sort((a, b) => b.rr - a.rr)[0]?.ticker || d.rows[0].ticker);
+  } catch (e) { $("#err").textContent = "Error: " + e.message; }
+}
+$("#refresh").onclick = load;
+load(); setInterval(load, 300000);
+</script>
+</body>
+</html>
