@@ -3,7 +3,7 @@
     python value_tracker.py            # opens http://127.0.0.1:8060
     python value_tracker.py --no-open  # just start the server
     python value_tracker.py --lan      # also reachable from other devices on your Wi-Fi
-    python value_tracker.py --export docs   # static snapshot for GitHub Pages (used by the scheduled job)
+    python value_tracker.py --export site   # static snapshot for GitHub Pages (used by the scheduled job)
 
 Live prices/fundamentals come from Yahoo (yfinance). Your valuation assumptions live in
 valuation.json; edit that file and refresh the page to re-run the models.
@@ -199,7 +199,7 @@ def export(out_dir):
 if __name__ == "__main__":
     if "--export" in sys.argv:
         i = sys.argv.index("--export")
-        export(sys.argv[i + 1] if len(sys.argv) > i + 1 else os.path.join(HERE, "docs"))
+        export(sys.argv[i + 1] if len(sys.argv) > i + 1 else os.path.join(HERE, "site"))
         sys.exit(0)
     srv = ThreadingHTTPServer((HOST, PORT), H)
     url = f"http://127.0.0.1:{PORT}"

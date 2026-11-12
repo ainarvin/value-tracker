@@ -284,7 +284,7 @@ async function load() {
     $("#asof").textContent = `${src} · updated ${new Date(d.asof).toLocaleString()} (${age})`;
     // Weekday data older than 2h means the scheduled refresh is failing; weekends are expected to be stale.
     const day = new Date().getUTCDay();
-    if (mins > 120 && day !== 0 && day !== 6) $("#err").textContent = `⚠ Data is ${age} old: the refresh may be failing. Prices may be out of date.`;
+    if (mins > 120 && day !== 0 && day !== 6) $("#err").textContent = `⚠ Prices were last updated ${(mins / 60).toFixed(1)} hours ago: the automatic refresh may be failing. Use Actions → Run workflow on GitHub to refresh now.`;
     renderTiles(); renderTable(); renderFF();
     select(sel || [...d.rows].filter(r => r.rr != null && r.group === "core").sort((a, b) => b.rr - a.rr)[0]?.ticker || d.rows[0].ticker);
   } catch (e) { $("#err").textContent = "Error: " + e.message; }

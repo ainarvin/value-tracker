@@ -2,13 +2,16 @@ name: Refresh stock snapshot
 
 on:
   schedule:
-    # Every 30 min, Mon-Fri, 00:00-21:59 UTC: covers Bursa Malaysia, Europe and US market hours.
-    - cron: "*/30 0-21 * * 1-5"
-    # Once on Saturday so weekend viewers see Friday's close.
-    - cron: "0 6 * * 6"
+    # GitHub often drops scheduled runs at :00/:30 when busy, so use quiet minutes and
+    # try 4x an hour; any run that fires refreshes the site. Mon-Fri 00:00-22:59 UTC
+    # covers Bursa Malaysia, Europe and US market hours.
+    - cron: "7,22,37,52 0-22 * * 1-5"
+    # Weekend: a few runs so Friday's close is always there.
+    - cron: "17 2,8,14 * * 6"
   workflow_dispatch: {}          # "Run workflow" button on GitHub (works from your phone)
   push:
-    paths: ["valuation.json", "value_tracker.py", "index.html"]
+    branches: [main]
+    paths: ["valuation.json", "value_tracker.py", "index.html", ".github/workflows/update.yml"]
 
 permissions:
   contents: write
@@ -29,13 +32,16 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - name: Build snapshot
-        run: python value_tracker.py --export docs
-      - name: Publish snapshot
+        run: python value_tracker.py --export site
+      - name: Publish to gh-pages
+        # The site lives on its own branch as a single commit that is replaced on every
+        # run, so 4 refreshes an hour never bloat the repo or clash with your edits on main.
         run: |
+          cd site
+          touch .nojekyll
+          git init -q -b gh-pages
           git config user.name "snapshot-bot"
           git config user.email "snapshot-bot@users.noreply.github.com"
-          git add docs
-          git diff --cached --quiet && echo "No changes" && exit 0
-          git commit -m "Refresh snapshot $(date -u +%Y-%m-%dT%H:%MZ)"
-          git pull --rebase --autostash
-          git push
+          git add -A
+          git commit -q -m "Snapshot $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages
